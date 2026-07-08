@@ -1,0 +1,8 @@
+# 의존성 / 빌드 산출물
+node_modules
+dist
+
+# 환경변수 (실제 값) — 템플릿(.env.example)만 커밋한다
+.env
+.env.local
+.env.*.local

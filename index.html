@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Just do eat — 오늘 점심, 바로 결정</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'%3E%3Ccircle cx='22' cy='22' r='22' fill='%23E0431F'/%3E%3Cpath d='M12.5 24 L19 30.5 L31.5 15.5' fill='none' stroke='%23fff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cellipse cx='33.6' cy='12.9' rx='3.9' ry='6.2' fill='%23fff' transform='rotate(-50 33.6 12.9)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  /* ═══ Just do eat — 제품형 디자인 시스템 ═══
+     로고: 스푼체크(숟가락 = 체크마크) · 팔레트: 쌀밥 화이트 + 정장 네이비 + 고추장 레드
+     타입: 디스플레이/CTA = Black Han Sans, 본문·데이터 = Pretendard */
+  :root {
+    --bg: #F2F3EF;
+    --surface: #FFFFFF;
+    --ink: #1D2A38;             /* 정장 네이비 */
+    --sub: #5D6975;
+    --line: #E4E6E0;
+    --line2: #CFD3CA;
+    --brand: #E0431F;           /* 고추장 레드 */
+    --brand-deep: #B5300F;
+    --brand-soft: #FCEBE4;
+    --ok: #1E7A4C;
+    --ok-soft: #E3F1E8;
+    --warn: #AF7712;
+    --warn-soft: #F6EDD7;
+    --navy: #31567F;
+    --navy-soft: #E9EEF5;
+    --display: "Black Han Sans", "Pretendard Variable", sans-serif;
+    --shadow: 0 1px 2px rgba(29,42,56,.05), 0 8px 24px rgba(29,42,56,.06);
+    /* 구버전 토큰 별칭 (스크립트 내 인라인 스타일용) */
+    --accent: var(--brand);
+    --green: var(--ok);
+    --red: var(--brand-deep);
+    --blue: var(--navy);
+    --blue-soft: var(--navy-soft);
+    --border: var(--line);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Pretendard Variable", Pretendard, "Noto Sans KR", "Malgun Gothic", -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 14px;
+    word-break: keep-all;
+    padding-bottom: 48px;
+  }
+  ::selection { background: var(--brand-soft); }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+  :focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+
+  /* ── 상단 바 + 로고 ─────────────────────────── */
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 1100;
+  }
+  .bar { display: flex; align-items: center; gap: 16px; min-height: 62px; }
+  .logo { display: flex; align-items: center; gap: 11px; text-decoration: none; }
+  .logo .mark { width: 36px; height: 36px; flex: none; }
+  .wordmark { display: block; font-family: var(--display); font-weight: 400; font-size: 19px; line-height: 1; letter-spacing: .03em; color: var(--ink); }
+  .claim { display: block; font-size: 10px; font-weight: 700; letter-spacing: .17em; color: var(--sub); margin-top: 3px; }
+  .today { margin-left: auto; color: var(--sub); font-size: 12.5px; font-weight: 600; }
+
+  /* ── 레이아웃: 결과(메인) + 조건 패널(사이드) ── */
+  .layout {
+    display: grid; grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 22px; align-items: start; padding-top: 22px;
+  }
+  .main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .side { display: flex; flex-direction: column; gap: 16px; }
+  @media (max-width: 1020px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+  /* ── 카드 공통 ─────────────────────────── */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); }
+  .card.slim { padding: 12px 16px; }
+  .card h2 {
+    font-size: 15px; font-weight: 800; letter-spacing: -.01em;
+    display: flex; align-items: baseline; gap: 6px;
+    padding-bottom: 10px; margin-bottom: 14px; border-bottom: 1px solid var(--line);
+  }
+  .card h2 .hint { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--sub); }
+
+  button {
+    font-family: inherit; font-size: 13.5px; font-weight: 700;
+    border: 1px solid var(--line2); border-radius: 10px;
+    padding: 9px 15px; cursor: pointer; background: var(--surface); color: var(--ink);
+    transition: background .12s;
+  }
+  button:hover { background: var(--bg); }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  button.primary:hover { background: var(--brand-deep); }
+  button.primary:disabled { background: var(--ok-soft); border-color: var(--ok-soft); color: var(--ok); cursor: default; }
+  button.small { padding: 6px 11px; font-size: 12px; border-radius: 9px; }
+  button.ghost { border-color: transparent; background: transparent; color: var(--sub); }
+  button.ghost:hover { color: var(--ink); background: transparent; text-decoration: underline; }
+  a.linkbtn {
+    display: inline-flex; align-items: center; justify-content: center; text-decoration: none;
+    font-size: 12.5px; font-weight: 700; border: 1px solid var(--line2); border-radius: 10px;
+    padding: 8px 14px; color: var(--ink); background: var(--surface);
+  }
+  a.linkbtn:hover { background: var(--bg); }
+  a.linkbtn.small { padding: 6px 11px; font-size: 12px; border-radius: 9px; }
+  input, select {
+    font-family: inherit; font-size: 13.5px;
+    border: 1px solid var(--line2); border-radius: 10px;
+    padding: 8px 11px; background: #fff; color: var(--ink);
+  }
+  input[type="number"], input[type="time"] { font-variant-numeric: tabular-nums; }
+  input:focus, select:focus { outline: 2px solid var(--navy); outline-offset: 1px; border-color: var(--navy); }
+  input[type="range"] { width: 100%; accent-color: var(--brand); padding: 0; border: none; }
+
+  /* ── 히어로: 오늘의 결론 ─────────────────────────── */
+  .hero { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px 24px 18px; box-shadow: var(--shadow); }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .hero.in { animation: rise .45s cubic-bezier(.2, .7, .3, 1) both; }
+  .hero-eyebrow { display: flex; align-items: center; gap: 7px; color: var(--brand); font-weight: 800; font-size: 13.5px; }
+  .hero-eyebrow .ic { width: 17px; height: 17px; color: var(--brand); }
+  .ctx { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 11px; }
+  .ctx-chip {
+    background: var(--bg); border: 1px solid var(--line); color: var(--sub);
+    font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+  }
+  .hero-main { display: flex; gap: 18px; align-items: center; margin: 16px 0 4px; }
+  .plate {
+    flex: none; width: 92px; height: 92px; border-radius: 50%;
+    background: #FBFAF6; border: 1px solid var(--line);
+    box-shadow: inset 0 0 0 7px #fff, inset 0 0 0 8px var(--line);
+    display: flex; align-items: center; justify-content: center; font-size: 44px;
+  }
+  .plate.sm { width: 52px; height: 52px; font-size: 26px; box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 5px var(--line); }
+  .hero-name { font-family: var(--display); font-weight: 400; font-size: 38px; line-height: 1.1; letter-spacing: -.005em; }
+  .hero-menu { color: var(--sub); font-size: 14px; margin-top: 4px; }
+  .stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: var(--line); border: 1px solid var(--line); border-radius: 12px;
+    overflow: hidden; margin: 14px 0 12px;
+  }
+  .stat-i { background: var(--surface); padding: 10px 12px; }
+  .stat-i .l { display: block; font-size: 11px; font-weight: 700; color: var(--sub); letter-spacing: .04em; margin-bottom: 2px; }
+  .stat-i .v { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .cst::before { content: "● "; font-size: 8px; vertical-align: 2px; }
+  .c-red { color: var(--brand-deep); }
+  .c-orange { color: var(--warn); }
+  .c-green { color: var(--ok); }
+  .reasons { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3.5px 10px; font-size: 11.5px; font-weight: 700; color: var(--sub);
+  }
+  .chip.green { background: var(--ok-soft); border-color: transparent; color: var(--ok); }
+  .chip.blue { background: var(--navy-soft); border-color: transparent; color: var(--navy); }
+  .reco-actions { display: flex; gap: 8px; margin-top: 14px; }
+  .reco-actions .primary { flex: 1; }
+  button.decide {
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    min-height: 52px; border-radius: 12px;
+    font-family: var(--display); font-weight: 400; font-size: 17px; letter-spacing: .05em;
+  }
+  button.decide .ic { width: 20px; height: 20px; }
+  .hero .why-wrap { margin-top: 12px; }
+  .fineprint {
+    color: var(--sub); font-size: 11.5px; line-height: 1.65;
+    border-top: 1px dashed var(--line); margin-top: 14px; padding-top: 10px;
+  }
+
+  /* ── 다른 선택지 (2·3위) ─────────────────────────── */
+  .alts-head { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 10px; }
+  .alts-head h3 { font-size: 13px; font-weight: 800; letter-spacing: .05em; color: var(--sub); }
+  .alts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .alt {
+    position: relative; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 16px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 9px;
+  }
+  .alt-rank {
+    position: absolute; top: 14px; right: 14px;
+    background: var(--bg); border: 1px solid var(--line); color: var(--sub);
+    font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 999px;
+  }
+  .alt-top { display: flex; gap: 12px; align-items: center; }
+  .alt-name { font-weight: 800; font-size: 16.5px; }
+  .alt-menu { font-size: 12.5px; color: var(--sub); }
+  .alt-meta { font-size: 12.5px; color: var(--sub); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .alt .reco-actions { margin-top: auto; padding-top: 2px; }
+  .alt .fineprint { margin-top: 4px; padding-top: 8px; }
+  @media (max-width: 640px) { .alts { grid-template-columns: minmax(0, 1fr); } }
+
+  /* ── 빈 상태 ─────────────────────────── */
+  .empty { text-align: center; padding: 42px 20px; }
+  .empty-badge {
+    display: inline-block; background: var(--navy-soft); color: var(--navy);
+    font-weight: 800; font-size: 12px; padding: 4px 13px; border-radius: 999px; margin-bottom: 12px;
+  }
+  .empty h3 { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .empty p { color: var(--sub); font-size: 13.5px; }
+
+  /* ── 산출 근거 & 인증 리뷰 ─────────────────────────── */
+  .why-btn {
+    align-self: flex-start; border: none; background: none; padding: 2px 0; border-radius: 0;
+    font-size: 12px; font-weight: 700; color: var(--sub);
+    text-decoration: underline dotted; cursor: pointer;
+  }
+  .why-btn:hover { background: none; color: var(--ink); }
+  .why { background: #F7F8F4; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 12px; margin-top: 8px; }
+  .why .bd-row { display: flex; justify-content: space-between; gap: 10px; padding: 1.5px 0; color: var(--sub); font-variant-numeric: tabular-nums; }
+  .why .bd-row b.plus { color: var(--ok); }
+  .why .bd-row b.minus { color: var(--brand-deep); }
+  .why .total {
+    display: flex; justify-content: space-between; margin-top: 8px; padding-top: 7px;
+    border-top: 2px solid var(--ink); font-weight: 800; font-size: 13px;
+  }
+  .why .vs, .why .rv { margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--line2); color: var(--sub); line-height: 1.65; }
+  .why .hd { font-weight: 800; font-size: 10.5px; letter-spacing: .12em; color: var(--ink); margin-bottom: 3px; }
+  .why .rv .r-item { padding: 2px 0; }
+  .why .lk { font-weight: 800; }
+  .why .lk.y { color: var(--ok); }
+  .why .lk.n { color: var(--brand-deep); }
+
+  /* ── 실시간 인기 ─────────────────────────── */
+  #popularCard { display: flex; gap: 12px 16px; align-items: center; flex-wrap: wrap; }
+  #popularCard .p-title {
+    flex: none; background: var(--brand-soft); color: var(--brand-deep);
+    font-weight: 800; font-size: 11.5px; padding: 4px 11px; border-radius: 999px;
+  }
+  #popularCard .p-item { font-size: 13px; color: var(--sub); }
+  #popularCard .p-item b { color: var(--ink); }
+  #popularCard .p-note { margin-left: auto; font-size: 11px; color: var(--sub); }
+
+  /* ── 지도 ─────────────────────────── */
+  #mapCard { padding: 0; overflow: hidden; }
+  #map { height: 360px; width: 100%; background: var(--bg); }
+  .map-note { padding: 10px 16px; font-size: 11px; color: var(--sub); border-top: 1px solid var(--line); }
+  .pin {
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #fff; border: 1.5px solid var(--line2); font-size: 15px;
+    box-shadow: 0 1px 4px rgba(29,42,56,.3);
+  }
+  .pin.top { border: 2px solid var(--brand); background: var(--brand-soft); width: 34px; height: 34px; font-size: 17px; }
+  .pin.out { opacity: .35; filter: grayscale(1); }
+  .pin.wp { border: 2px solid var(--navy); background: var(--navy-soft); width: 36px; height: 36px; font-size: 18px; }
+  .leaflet-popup-content { font-family: inherit; font-size: 12.5px; line-height: 1.55; }
+  .leaflet-popup-content-wrapper { border-radius: 10px; }
+
+  /* ── 조건 패널: 일정 ─────────────────────────── */
+  .event { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; align-items: center; }
+  .event:last-of-type { border-bottom: none; }
+  .event .time { color: var(--navy); font-weight: 700; font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .event .title { flex: 1; }
+  .event .del { color: var(--sub); cursor: pointer; border: none; background: none; font-size: 13px; padding: 2px 6px; }
+  .event .del:hover { color: var(--brand); background: none; }
+  .lunch-window {
+    margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+    background: var(--navy-soft); color: var(--navy);
+    font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  }
+  .lunch-window.tight { background: var(--brand-soft); color: var(--brand-deep); }
+  .add-event { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .add-event input[type="text"] { flex: 1; min-width: 90px; }
+
+  /* ── 조건 패널: 프로필 ─────────────────────────── */
+  .field { margin-bottom: 15px; }
+  .field label { display: block; font-size: 11px; font-weight: 800; letter-spacing: .04em; color: var(--sub); margin-bottom: 6px; }
+  .field .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .field input[type="number"] { width: 110px; }
+  .toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+  .toggle {
+    border: 1px solid var(--line2); border-radius: 999px; background: #fff;
+    padding: 5px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; user-select: none;
+  }
+  .toggle.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .toggle.on.danger { background: var(--brand); border-color: var(--brand); }
+  .toggle.on.like { background: var(--ok); border-color: var(--ok); }
+  .toggle.on.dislike { background: var(--brand-deep); border-color: var(--brand-deep); }
+  .weather-row .toggle.on { background: var(--navy); border-color: var(--navy); }
+  .budget-bar { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; margin-top: 8px; }
+  .budget-bar > div { height: 100%; background: var(--ok); border-radius: 999px; }
+  .budget-bar > div.warn { background: var(--warn); }
+  .budget-bar > div.over { background: var(--brand); }
+  .budget-note { font-size: 12px; color: var(--sub); margin-top: 6px; }
+  #radiusLabel { color: var(--brand); font-weight: 800; }
+
+  /* ── 식사 기록(달력) ─────────────────────────── */
+  .cal-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .cal-nav .title { font-weight: 800; font-size: 14.5px; flex: 1; text-align: center; }
+  .cal-dow, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-dow span { text-align: center; font-size: 10.5px; color: var(--sub); font-weight: 700; padding: 2px 0; }
+  .cal-cell {
+    min-height: 52px; border: 1px solid var(--line); border-radius: 10px;
+    padding: 3px 5px; font-size: 11px; color: var(--sub); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 1px; background: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+  .cal-cell.blank { border: none; background: transparent; cursor: default; }
+  .cal-cell.today { border: 2px solid var(--brand); color: var(--brand-deep); font-weight: 800; }
+  .cal-cell.sel { background: var(--bg); }
+  .cal-cell .emo { font-size: 17px; line-height: 1.1; }
+  .cal-cell .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line2); }
+  .cal-cell .dot.like { background: var(--ok); }
+  .cal-cell .dot.dislike { background: var(--warn); }
+  .cal-cell .dot.ban { background: var(--ink); }
+  .cal-detail { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .cal-detail .d-title { font-size: 13px; font-weight: 800; margin-bottom: 6px; }
+  .visit { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; flex-wrap: wrap; }
+  .visit .n { flex: 1; font-weight: 600; min-width: 140px; }
+  .visit .sub { color: var(--sub); font-weight: 400; }
+  .fb { display: flex; gap: 4px; }
+  .fb button {
+    border: 1px solid var(--line2); background: #fff; border-radius: 999px;
+    padding: 3px 10px; font-size: 11.5px; font-weight: 700; color: var(--sub);
+  }
+  .fb button.sel-like { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+  .fb button.sel-dislike { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+  .fb button.sel-ban { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .muted { color: var(--sub); font-size: 12.5px; }
+  .rev-input { display: flex; gap: 6px; margin: 2px 0 6px 24px; }
+  .rev-input input { flex: 1; font-size: 12px; padding: 6px 9px; }
+  .rev-text { font-size: 12px; color: var(--sub); margin: 0 0 6px 24px; }
+  .rev-text .ok { color: var(--ok); font-weight: 700; }
+  .edit-link { cursor: pointer; color: var(--navy); font-size: 11px; text-decoration: underline dotted; }
+
+  /* ── 월간 리포트 ─────────────────────────── */
+  .report { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .report h3 { font-size: 14.5px; font-weight: 800; margin-bottom: 10px; }
+  .report h4 { font-size: 11px; font-weight: 800; letter-spacing: .08em; color: var(--sub); margin: 14px 0 6px; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 8px 10px; }
+  .stat .v { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat .v small { font-size: 10.5px; font-weight: 700; color: var(--sub); }
+  .stat .l { font-size: 11px; color: var(--sub); }
+  .bar-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 3px 0; }
+  .bar-row .lbl { width: 96px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-row .track { flex: 1; height: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+  .bar-row .fill { height: 100%; background: var(--brand); border-radius: 999px; }
+  .bar-row .val { width: 76px; text-align: right; color: var(--sub); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .fav-row { display: flex; gap: 8px; font-size: 13px; padding: 3px 0; align-items: baseline; }
+  .fav-row .medal { width: 26px; font-size: 11px; font-weight: 800; color: var(--brand-deep); }
+  .fav-row .cnt { margin-left: auto; color: var(--sub); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; border-radius: 12px;
+    padding: 11px 20px; font-size: 13.5px; font-weight: 600; opacity: 0; pointer-events: none;
+    transition: opacity .25s; z-index: 9999; max-width: min(560px, calc(100vw - 40px));
+    box-shadow: var(--shadow);
+  }
+  .toast.show { opacity: 1; }
+  footer { text-align: center; color: var(--sub); font-size: 11.5px; margin-top: 36px; }
+
+  @media (max-width: 640px) {
+    .hero { padding: 20px 18px 16px; }
+    .hero-name { font-size: 29px; }
+    .plate { width: 72px; height: 72px; font-size: 34px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .today { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="spoonCheck" viewBox="0 0 44 44">
+    <path d="M12.5 24 L19 30.5 L31.5 15.5" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <ellipse cx="33.6" cy="12.9" rx="4.2" ry="6.4" fill="currentColor" transform="rotate(-50 33.6 12.9)"/>
+  </symbol>
+</svg>
+
+<header>
+  <div class="wrap bar">
+    <a class="logo" href="#" onclick="return false" aria-label="Just do eat — 오늘 점심, 바로 결정">
+      <svg class="mark" viewBox="0 0 44 44" aria-hidden="true">
+        <circle cx="22" cy="22" r="22" fill="#E0431F"/>
+        <path d="M12.5 24 L19 30.5 L31.5 15.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <ellipse cx="33.6" cy="12.9" rx="3.9" ry="6.2" fill="#fff" transform="rotate(-50 33.6 12.9)"/>
+      </svg>
+      <span class="lockup">
+        <span class="wordmark">JUST DO EAT</span>
+        <span class="claim">오늘 점심, 바로 결정</span>
+      </span>
+    </a>
+    <span class="today" id="todayLabel"></span>
+  </div>
+</header>
+
+<div class="wrap layout">
+
+  <main class="main">
+    <!-- 오늘의 결론 + 다른 선택지 -->
+    <div id="top3"></div>
+
+    <!-- 실시간 인기 -->
+    <div class="card slim" id="popularCard"></div>
+
+    <!-- 지도 -->
+    <div class="card" id="mapCard">
+      <div id="map"></div>
+      <div class="map-note">
+        지도를 <b>클릭</b>하면 그 지점이 내 위치가 됩니다(출장 모드).
+        붉은 링은 오늘의 추천, 흐린 마커는 반경 밖.
+        프로토타입은 예시 식당을 내 위치 주변에 배치하며, 실서비스에서는 위치 기반으로 실제 주변 식당을 불러옵니다.
+      </div>
+    </div>
+
+    <!-- 식사 기록 -->
+    <div class="card">
+      <h2>식사 기록 <span class="hint">결정하면 자동 저장</span></h2>
+      <div class="cal-nav">
+        <button class="small" id="calPrev" aria-label="이전 달">‹</button>
+        <span class="title" id="calTitle"></span>
+        <button class="small" id="calNext" aria-label="다음 달">›</button>
+      </div>
+      <div class="cal-dow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-detail" id="calDetail"></div>
+      <div class="add-event"><button class="small" id="btnReport">월간 리포트</button></div>
+      <div id="reportBox"></div>
+      <p class="muted" style="margin-top:10px">
+        날짜를 눌러 <b>좋아요 / 별로 / 제외</b>를 남기면 다음 추천에 바로 반영됩니다.
+        한 줄 리뷰는 <b>방문 당일에만</b> 쓸 수 있어요 — 안 가본 사람은 리뷰를 못 쓰니까요.
+      </p>
+      <div class="add-event"><button class="small ghost" id="btnClearHistory">기록 전체 삭제</button></div>
+    </div>
+  </main>
+
+  <aside class="side">
+    <!-- 오늘의 일정 -->
+    <div class="card">
+      <h2>오늘의 일정 <span class="hint">점심 시간 자동 계산</span></h2>
+      <div id="eventList"></div>
+      <div class="lunch-window" id="lunchWindow"></div>
+      <div class="add-event">
+        <input type="time" id="evStart" value="14:00">
+        <input type="time" id="evEnd" value="15:00">
+        <input type="text" id="evTitle" placeholder="일정 제목 (예: 팀 회식)">
+      </div>
+      <div class="add-event">
+        <button class="small" id="btnAddEvent">+ 일정 추가</button>
+        <button class="small" id="btnDemoEvents">예시 일정</button>
+        <button class="small ghost" id="btnClearEvents">비우기</button>
+      </div>
+      <p class="muted" style="margin-top:10px">
+        실서비스에서는 Google Calendar와 자동 동기화됩니다.
+        <b>회식</b>이 있으면 가벼운 점심을, 시간이 짧으면 빨리 나오는 곳을 먼저 올려요.
+      </p>
+    </div>
+
+    <!-- 내 프로필 -->
+    <div class="card">
+      <h2>내 프로필</h2>
+      <div class="field">
+        <label>1끼 예산 (원)</label>
+        <div class="row">
+          <input type="number" id="budget" step="500" min="5000">
+          <span class="muted">이하만 추천</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>오늘 함께 먹는 인원</label>
+        <div class="row">
+          <input type="number" id="party" min="1" max="20" style="width:80px">
+          <span class="muted">5명 이상 = 단체석</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>알레르기 — 해당 식당 제외</label>
+        <div class="toggles" id="allergyToggles"></div>
+      </div>
+      <div class="field">
+        <label>좋아하는 종류 (한 번 더 클릭 = 피하기)</label>
+        <div class="toggles" id="categoryToggles"></div>
+      </div>
+      <div class="field">
+        <label>매운 음식</label>
+        <div class="toggles weather-row" id="spicyToggles"></div>
+      </div>
+      <div class="field">
+        <label>오늘 날씨 <span id="weatherStatus" style="font-weight:400"></span></label>
+        <div class="toggles weather-row" id="weatherToggles"></div>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>이번 달 점심 예산 (원)</label>
+        <div class="row">
+          <input type="number" id="monthBudget" step="10000" min="0">
+        </div>
+        <div class="budget-bar"><div id="budgetFill" style="width:0%"></div></div>
+        <div class="budget-note" id="budgetNote"></div>
+      </div>
+    </div>
+
+    <!-- 위치와 반경 -->
+    <div class="card">
+      <h2>위치와 반경</h2>
+      <div class="field">
+        <label>내 위치</label>
+        <div class="row">
+          <input type="text" id="wpName" placeholder="위치 이름 (예: 본사)" style="flex:1;min-width:120px">
+          <select id="wpPreset">
+            <option value="">이동…</option>
+            <option value="37.5663,126.9779,서울시청 본사">서울시청</option>
+            <option value="37.4979,127.0276,강남 지사">강남역</option>
+            <option value="37.3948,127.1112,판교 오피스">판교역</option>
+            <option value="37.5215,126.9243,여의도 지점">여의도역</option>
+            <option value="35.1796,129.0756,부산 출장">부산 서면</option>
+          </select>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>탐색 반경 <span id="radiusLabel"></span></label>
+        <input type="range" id="radius" min="200" max="1500" step="100">
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<div class="wrap">
+  <footer>Just do eat 프로토타입 — 모든 데이터는 이 브라우저(localStorage)에만 저장됩니다</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+"use strict";
+
+/* ═══════════════ 데이터: 주변 식당 DB (예시) ═══════════════
+   dist: 내 위치로부터 거리(m), deg: 방위각(지도 배치용)
+   allergens: 밀, 계란, 유제품, 대두, 견과류, 갑각류
+   tags: hot(뜨끈한 국물), cold(시원한), light(가벼운), heavy(든든한),
+         fast(빨리 나옴), solo(혼밥), group(단체석)
+   nutri: 1인분 기준 kcal/단백질/탄수화물/지방(g), src: 정보 출처 */
+const RESTAURANTS = [
+  { id:"kimchi",    name:"뚝배기집",       category:"한식", menu:"김치찌개",        emoji:"🍲", price:9000,  dist:210, deg:40,  spicy:2, allergens:["대두"],               tags:["hot","solo","group"],
+    nutri:{kcal:550, p:25, c:60, f:20}, src:"표준", origin:"돼지고기 국내산 · 배추김치 국내산 · 쌀 국내산", eat:25 },
+  { id:"kalguksu",  name:"명동칼국수",     category:"한식", menu:"칼국수",          emoji:"🍜", price:9500,  dist:350, deg:300, spicy:0, allergens:["밀","계란"],          tags:["hot"],
+    nutri:{kcal:520, p:20, c:90, f:8},  src:"표준", origin:"밀가루 미국산 · 바지락 국내산", eat:20 },
+  { id:"seolleong", name:"진국설렁탕",     category:"한식", menu:"설렁탕",          emoji:"🥣", price:11000, dist:280, deg:120, spicy:0, allergens:[],                     tags:["hot","solo","group","fast"],
+    nutri:{kcal:460, p:35, c:40, f:15}, src:"식당 제공", origin:"소고기(사골·양지) 국내산 · 쌀 국내산", eat:20 },
+  { id:"baekban",   name:"정성한상",       category:"한식", menu:"제철 백반",       emoji:"🍚", price:9000,  dist:390, deg:200, spicy:1, allergens:["대두"],               tags:["group","solo"],
+    nutri:{kcal:650, p:28, c:85, f:18}, src:"표준", origin:"쌀 국내산 · 나물류 국내산 · 고등어 노르웨이산", eat:25 },
+  { id:"jeyuk",     name:"화로상회",       category:"한식", menu:"제육쌈밥",        emoji:"🥬", price:10500, dist:590, deg:250, spicy:2, allergens:["대두"],               tags:["group","heavy"],
+    nutri:{kcal:780, p:35, c:80, f:32}, src:"표준", origin:"돼지고기 국내산 · 쌈채소 국내산", eat:35 },
+  { id:"bibim",     name:"곤드레마을",     category:"한식", menu:"곤드레비빔밥",    emoji:"🥗", price:9500,  dist:450, deg:330, spicy:1, allergens:["대두","계란"],        tags:["light"],
+    nutri:{kcal:530, p:15, c:90, f:10}, src:"표준", origin:"곤드레 국내산(정선) · 쌀 국내산", eat:20 },
+  { id:"naengmyeon",name:"평양면옥",       category:"한식", menu:"물냉면",          emoji:"🧊", price:12000, dist:850, deg:80,  spicy:0, allergens:["밀","계란"],          tags:["cold"],
+    nutri:{kcal:480, p:20, c:90, f:5},  src:"표준", origin:"메밀 중국산 · 소고기(육수) 호주산", eat:25 },
+  { id:"budae",     name:"부대찌개 1번지", category:"한식", menu:"부대찌개",        emoji:"🫕", price:11000, dist:430, deg:150, spicy:2, allergens:["대두","밀"],          tags:["hot","group","heavy"],
+    nutri:{kcal:720, p:30, c:70, f:35}, src:"표준", origin:"돼지고기 국내산 · 소시지(돼지고기) 외국산 · 김치 국내산", eat:30 },
+  { id:"samgye",    name:"삼계옥",         category:"한식", menu:"삼계탕",          emoji:"🐔", price:15000, dist:700, deg:20,  spicy:0, allergens:["견과류"],             tags:["hot","group","heavy"],
+    nutri:{kcal:800, p:55, c:45, f:40}, src:"식당 제공", origin:"닭고기 국내산 · 인삼 국내산(금산) · 찹쌀 국내산", eat:35 },
+  { id:"donkatsu",  name:"왕돈까스",       category:"일식", menu:"등심돈까스",      emoji:"🍱", price:10000, dist:470, deg:290, spicy:0, allergens:["밀","계란","유제품"], tags:["heavy"],
+    nutri:{kcal:850, p:35, c:80, f:42}, src:"표준", origin:"돼지고기 국내산 · 밀가루 미국산", eat:25 },
+  { id:"sushi",     name:"스시로벤또",     category:"일식", menu:"초밥 세트",       emoji:"🍣", price:13000, dist:560, deg:60,  spicy:0, allergens:["갑각류","계란"],      tags:["light"],
+    nutri:{kcal:520, p:28, c:75, f:10}, src:"식당 제공", origin:"연어 노르웨이산 · 광어 국내산 · 쌀 국내산", eat:30 },
+  { id:"curry",     name:"카레당",         category:"일식", menu:"치킨카레",        emoji:"🍛", price:9500,  dist:520, deg:180, spicy:1, allergens:["밀"],                 tags:["solo","fast"],
+    nutri:{kcal:680, p:25, c:95, f:20}, src:"표준", origin:"닭고기 브라질산 · 쌀 국내산 · 카레분 일본산", eat:20 },
+  { id:"tendon",    name:"텐동 요츠야",    category:"일식", menu:"새우텐동",        emoji:"🍤", price:12500, dist:660, deg:230, spicy:0, allergens:["밀","계란","갑각류"], tags:["heavy"],
+    nutri:{kcal:750, p:25, c:95, f:28}, src:"표준", origin:"새우 베트남산 · 쌀 국내산 · 식용유 국내산", eat:25 },
+  { id:"udon",      name:"우동가게",       category:"일식", menu:"가케우동",        emoji:"🥢", price:8500,  dist:240, deg:100, spicy:0, allergens:["밀"],                 tags:["hot","fast","solo"],
+    nutri:{kcal:430, p:12, c:80, f:6},  src:"표준", origin:"밀가루 호주산 · 가쓰오부시 일본산", eat:15 },
+  { id:"mala",      name:"마라공방",       category:"중식", menu:"마라탕",          emoji:"🌶️", price:12000, dist:640, deg:310, spicy:3, allergens:["견과류","대두"],      tags:["hot"],
+    nutri:{kcal:600, p:28, c:50, f:30}, src:"표준", origin:"소고기 호주산 · 배추 국내산 · 마라소스 중국산", eat:30 },
+  { id:"jjajang",   name:"홍콩반점",       category:"중식", menu:"짜장면",          emoji:"🍝", price:8000,  dist:380, deg:350, spicy:1, allergens:["밀","대두","계란"],   tags:["group","fast"],
+    nutri:{kcal:700, p:18, c:105, f:20}, src:"표준", origin:"밀가루 미국산 · 돼지고기 국내산 · 양파 국내산", eat:20 },
+  { id:"pasta",     name:"파스타공작소",   category:"양식", menu:"투움바 파스타",   emoji:"🍝", price:13500, dist:720, deg:140, spicy:0, allergens:["밀","유제품"],        tags:[],
+    nutri:{kcal:820, p:25, c:90, f:38}, src:"표준", origin:"파스타면 이탈리아산 · 베이컨(돼지고기) 외국산 · 생크림 국내산", eat:35 },
+  { id:"burger",    name:"버거플래닛",     category:"양식", menu:"수제버거",        emoji:"🍔", price:8900,  dist:230, deg:220, spicy:0, allergens:["밀","유제품","계란","대두"], tags:["solo","fast"],
+    nutri:{kcal:780, p:32, c:60, f:42}, src:"식당 제공", origin:"소고기 호주산 · 빵(밀) 미국산 · 치즈 뉴질랜드산", eat:15 },
+  { id:"taco",      name:"타코벨라",       category:"양식", menu:"타코 플레이트",   emoji:"🌮", price:10000, dist:790, deg:70,  spicy:2, allergens:["밀","유제품"],        tags:[],
+    nutri:{kcal:650, p:28, c:65, f:28}, src:"표준", origin:"소고기 미국산 · 토르티야(밀) 미국산 · 아보카도 멕시코산", eat:25 },
+  { id:"pho",       name:"사이공쌀국수",   category:"아시안", menu:"소고기 쌀국수", emoji:"🍜", price:10500, dist:500, deg:260, spicy:1, allergens:["견과류"],             tags:["hot","light"],
+    nutri:{kcal:450, p:25, c:70, f:8},  src:"표준", origin:"쌀국수면 베트남산 · 소고기 호주산 · 숙주 국내산", eat:25 },
+  { id:"salad",     name:"샐러디밸리",     category:"샐러드·샌드위치", menu:"닭가슴살 샐러드", emoji:"🥗", price:9900, dist:300, deg:10, spicy:0, allergens:["견과류","유제품"], tags:["light","cold","solo","fast"],
+    nutri:{kcal:380, p:35, c:20, f:18}, src:"식당 제공", origin:"닭가슴살 국내산 · 채소류 국내산 · 견과류 미국산", eat:15 },
+  { id:"sandwich",  name:"써브샌드",       category:"샐러드·샌드위치", menu:"클럽 샌드위치",  emoji:"🥪", price:7500, dist:140, deg:160, spicy:0, allergens:["밀","유제품","계란"], tags:["light","solo","fast"],
+    nutri:{kcal:440, p:22, c:45, f:18}, src:"식당 제공", origin:"빵(밀) 미국산 · 닭가슴살 국내산 · 치즈 외국산", eat:10 },
+  { id:"tteok",     name:"분식천국",       category:"분식", menu:"떡볶이+김밥",     emoji:"🍢", price:7000,  dist:160, deg:280, spicy:2, allergens:["밀","대두","계란"],   tags:["fast","solo"],
+    nutri:{kcal:700, p:15, c:120, f:15}, src:"표준", origin:"쌀떡(쌀) 국내산 · 어묵(연육) 외국산 · 김 국내산", eat:15 },
+  { id:"juk",       name:"죽이야기",       category:"분식", menu:"전복죽",          emoji:"🥣", price:9000,  dist:310, deg:210, spicy:0, allergens:["갑각류"],             tags:["light","hot","solo","fast"],
+    nutri:{kcal:350, p:18, c:55, f:6},  src:"표준", origin:"전복 국내산(완도) · 쌀 국내산 · 참기름 국내산", eat:15 },
+];
+const WALK_SPEED = 70;   // m/분
+RESTAURANTS.forEach(r => { r.walk = Math.max(1, Math.round(r.dist / WALK_SPEED)); });
+
+const ALLERGENS  = ["밀","계란","유제품","대두","견과류","갑각류"];
+const CATEGORIES = [...new Set(RESTAURANTS.map(r => r.category))];
+const WEATHERS   = [["sunny","맑음"],["rain","비"],["hot","무더위"],["cold","한파"]];
+const SPICY_OPTS = [["love","좋아함"],["ok","보통"],["no","못 먹음"]];
+
+/* ═══════════════ 상태 (localStorage) ═══════════════ */
+const STORE_KEY = "just-do-eat-v1";
+const defaultState = () => ({
+  budget: 12000,
+  monthBudget: 200000,
+  party: 1,
+  allergies: [],
+  catPrefs: {},
+  spicy: "ok",
+  weather: "sunny",
+  weatherAuto: true,                                      // 기상 API 자동 감지
+  radius: 800,                                            // 탐색 반경(m)
+  workplace: { lat: 37.5663, lng: 126.9779, name: "서울시청 본사" },
+  events: [],                                             // [{start,end,title}]
+  visits: [],                                             // [{date,id,name,menu,emoji,price,feedback}]
+  banned: [],
+});
+let S = load();
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const st = Object.assign(defaultState(), parsed);
+      st.workplace = Object.assign(defaultState().workplace, parsed.workplace || {});
+      return st;
+    }
+  } catch (e) {}
+  return defaultState();
+}
+function save() { localStorage.setItem(STORE_KEY, JSON.stringify(S)); }
+
+/* ═══════════════ 유틸 ═══════════════ */
+const $  = sel => document.querySelector(sel);
+const won = n => n.toLocaleString("ko-KR") + "원";
+const pad = n => String(n).padStart(2, "0");
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const toMin = t => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+const fmtMin = m => `${pad(Math.floor(m/60))}:${pad(m%60)}`;
+
+// 방위각+거리 → 위경도 (내 위치 기준)
+function restLatLng(r) {
+  const rad = r.deg * Math.PI / 180;
+  const dx = r.dist * Math.sin(rad), dy = r.dist * Math.cos(rad);
+  const lat = S.workplace.lat + dy / 111320;
+  const lng = S.workplace.lng + dx / (111320 * Math.cos(S.workplace.lat * Math.PI / 180));
+  return [lat, lng];
+}
+function infoUrl(r) {
+  return "https://map.naver.com/p/search/" + encodeURIComponent(r.name + " " + r.menu);
+}
+
+// 날짜 기반 시드 난수: 같은 날엔 같은 추천, 날이 바뀌면 달라짐
+function seededRandom(seedStr) {
+  let h = 2166136261;
+  for (let i = 0; i < seedStr.length; i++) { h ^= seedStr.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return () => {
+    h ^= h << 13; h ^= h >>> 17; h ^= h << 5;
+    return ((h >>> 0) % 10000) / 10000;
+  };
+}
+
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+/* ═══════════════ 실시간 날씨 (Open-Meteo API, 키 불필요) ═══════════════ */
+let weatherInfo = null;   // {temp, autoOk}
+async function fetchWeather() {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${S.workplace.lat}&longitude=${S.workplace.lng}&current=temperature_2m,precipitation,weather_code`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const cur = data.current;
+    const rainCodes = [51,53,55,56,57,61,63,65,66,67,71,73,75,77,80,81,82,85,86,95,96,99];
+    let w = "sunny";
+    if (cur.precipitation > 0 || rainCodes.includes(cur.weather_code)) w = "rain";
+    else if (cur.temperature_2m >= 28) w = "hot";
+    else if (cur.temperature_2m <= 5)  w = "cold";
+    weatherInfo = { temp: cur.temperature_2m, autoOk: true };
+    if (S.weatherAuto) S.weather = w;
+    renderAll();
+  } catch (e) {
+    weatherInfo = { temp: null, autoOk: false };
+    renderAll();
+  }
+}
+
+/* ═══════════════ 실시간 커뮤니티 (프로토타입: 시뮬레이션) ═══════════════
+   실서비스: 같은 반경 내 사용자들이 "이걸로 결정"한 수를 서버에서 집계 */
+const CROWD_FAVORITES = ["kimchi","seolleong","salad","jjajang"];
+function crowdCount(r) {
+  const rand = seededRandom(todayStr() + "-crowd-" + r.id);
+  let count = Math.floor(rand() * 12) + (CROWD_FAVORITES.includes(r.id) ? 4 : 0);
+  count += S.visits.filter(v => v.date === todayStr() && v.id === r.id).length;   // 나의 결정도 집계에 반영
+  const level = count >= 12 ? { cls: "c-red",    label: "붐빔" }
+              : count >= 7  ? { cls: "c-orange", label: "보통" }
+              :               { cls: "c-green",  label: "여유" };
+  return { count, ...level };
+}
+function popularToday() {
+  // 내 위치의 탐색 반경 안에 있는 식당만 집계 (위치를 옮기면 인기 순위도 그 동네 기준)
+  return RESTAURANTS.filter(r => r.dist <= S.radius)
+    .map(r => ({ r, count: crowdCount(r).count }))
+    .sort((a, b) => b.count - a.count).slice(0, 3);
+}
+
+/* ═══════════════ 당일 인증 리뷰 ═══════════════
+   그날 결정한 사용자만 그날 작성 가능 → 방문하지 않은 사람의 리뷰가 원천 차단됨 */
+const SEED_REVIEWS = [
+  { rid:"kimchi",    daysAgo:1, author:"김대리",     liked:true,  text:"묵은지가 미쳤어요. 12시 전에 가야 자리 있음" },
+  { rid:"kimchi",    daysAgo:4, author:"점심요정",   liked:true,  text:"계란말이 추가 필수!" },
+  { rid:"seolleong", daysAgo:2, author:"박과장",     liked:true,  text:"회전 빨라서 40분 점심에도 OK" },
+  { rid:"salad",     daysAgo:1, author:"헬시워커",   liked:true,  text:"드레싱 따로 달라고 하면 더 좋아요" },
+  { rid:"jjajang",   daysAgo:3, author:"최사원",     liked:true,  text:"가성비 끝판왕. 단무지 무한리필" },
+  { rid:"mala",      daysAgo:2, author:"불도저",     liked:true,  text:"2단계도 꽤 매워요. 순한맛 추천" },
+  { rid:"pasta",     daysAgo:5, author:"미식가K",    liked:false, text:"맛은 좋은데 웨이팅+조리 시간이 길어요" },
+  { rid:"udon",      daysAgo:1, author:"짠돌이T",    liked:true,  text:"8,500원에 이 퀄리티면 인정" },
+  { rid:"sushi",     daysAgo:6, author:"이팀장",     liked:true,  text:"연어가 두툼. 점심 특선 강추" },
+  { rid:"budae",     daysAgo:3, author:"국물성애자", liked:true,  text:"라면사리 서비스로 주심" },
+  { rid:"donkatsu",  daysAgo:4, author:"왕밥러",     liked:false, text:"양은 많은데 좀 느끼했어요" },
+  { rid:"pho",       daysAgo:2, author:"소식좌",     liked:true,  text:"양 조절 가능. 고수 빼달라 하세요" },
+];
+function reviewDate(daysAgo) {
+  const d = new Date(); d.setDate(d.getDate() - daysAgo);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function reviewsFor(rid) {
+  const seed = SEED_REVIEWS.filter(x => x.rid === rid)
+    .map(x => ({ date: reviewDate(x.daysAgo), author: x.author, liked: x.liked, text: x.text }));
+  const mine = S.visits.filter(v => v.id === rid && v.review)
+    .map(v => ({ date: v.date, author: "나", liked: v.feedback === "like", text: v.review }));
+  return [...seed, ...mine].sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/* ═══════════════ 점심 가능 시간 계산 ═══════════════ */
+function lunchWindow() {
+  let slots = [[toMin("11:30"), toMin("13:30")]];
+  const busy = S.events.map(e => [toMin(e.start), toMin(e.end)]).sort((a, b) => a[0] - b[0]);
+  for (const [bs, be] of busy) {
+    const next = [];
+    for (const [s, e] of slots) {
+      if (be <= s || bs >= e) { next.push([s, e]); continue; }
+      if (bs > s) next.push([s, bs]);
+      if (be < e) next.push([be, e]);
+    }
+    slots = next;
+  }
+  slots = slots.filter(([s, e]) => e - s >= 15);
+  if (!slots.length) return null;
+  slots.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]));
+  const [s, e] = slots[0];
+  return { start: s, end: e, minutes: e - s };
+}
+const hasDinnerParty = () => S.events.some(e => /회식|저녁|dinner/i.test(e.title) && toMin(e.start) >= toMin("17:00"));
+const hasLunchAppointment = () => S.events.some(e => /점심.*약속|약속.*점심|런치/i.test(e.title));
+
+/* ═══════════════ 추천 엔진 ═══════════════ */
+function recommend() {
+  const win = lunchWindow();
+  const dinner = hasDinnerParty();
+  const today = todayStr();
+  const recent = S.visits.slice(-14);
+  const lastVisitDay = {};
+  for (const v of recent) {
+    const days = Math.round((new Date(today) - new Date(v.date)) / 86400000);
+    if (!(v.id in lastVisitDay) || days < lastVisitDay[v.id]) lastVisitDay[v.id] = days;
+  }
+  const recentCats = recent.slice(-2)
+    .map(v => (RESTAURANTS.find(x => x.id === v.id) || {}).category).filter(Boolean);
+  const fb = {};
+  for (const v of S.visits) {
+    if (!v.feedback || v.feedback === "ban") continue;
+    fb[v.id] = fb[v.id] || { like: 0, dislike: 0 };
+    fb[v.id][v.feedback]++;
+  }
+  const mb = monthSpendInfo();
+  const rand = seededRandom(today + "-justdoeat");
+  const results = [];
+
+  for (const r of RESTAURANTS) {
+    const reasons = [];
+    // ── 하드 필터: 통과 못 하면 후보 제외 ──
+    if (S.banned.includes(r.id)) continue;
+    if (r.allergens.some(a => S.allergies.includes(a))) continue;
+    if (r.price > S.budget) continue;
+    if (r.dist > S.radius) continue;
+    if (S.party >= 5 && !r.tags.includes("group")) continue;
+    if (S.spicy === "no" && r.spicy >= 2) continue;
+    if (win) {
+      const need = r.walk * 2 + r.eat + 5;
+      if (need > win.minutes) continue;
+      if (win.minutes <= 45 && r.tags.includes("fast"))
+        reasons.push({ t: `점심 ${win.minutes}분 — 빨리 나옴`, c: "blue" });
+    }
+
+    // ── 소프트 점수: 모든 가감점을 breakdown에 기록 ("왜 이 집?" 근거) ──
+    const br = [];
+    let score = 0;
+    const add = (pts, label) => { pts = Math.round(pts); score += pts; if (pts) br.push({ pts, label }); };
+
+    add(50 + rand() * 10, "기본 점수 + 오늘의 운");
+    add((S.radius - r.dist) / S.radius * 6, `가까운 거리 (${r.dist}m)`);
+
+    const pref = S.catPrefs[r.category];
+    if (pref === "like")    { add(15, `좋아하는 ${r.category}`); reasons.push({ t: `좋아하는 ${r.category}`, c: "green" }); }
+    if (pref === "dislike") { add(-25, `피하는 ${r.category}`); }
+
+    if (S.spicy === "love" && r.spicy >= 2) { add(8, "매콤한 메뉴 선호"); reasons.push({ t: "매콤한 메뉴", c: "" }); }
+    if (S.spicy === "no" && r.spicy === 1) add(-8, "약간 매운 메뉴");
+
+    const f = fb[r.id];
+    if (f) {
+      if (f.like)    add(f.like * 18, `맛있어요 평가 ${f.like}회`);
+      if (f.dislike) add(-f.dislike * 25, `별로예요 평가 ${f.dislike}회`);
+      if (f.like > f.dislike) reasons.push({ t: "지난번 평가가 좋았던 곳", c: "green" });
+    }
+
+    if (r.id in lastVisitDay) {
+      const d = lastVisitDay[r.id];
+      if (d <= 7) add(-(8 - d) * 6, `${d === 0 ? "오늘" : d + "일 전"} 이미 다녀옴`);
+    } else {
+      add(6, "최근 2주간 안 먹은 메뉴");
+      reasons.push({ t: "2주간 안 먹은 메뉴", c: "" });
+    }
+    if (recentCats.includes(r.category)) add(-15, `직전 식사와 같은 ${r.category}`);
+
+    if (S.weather === "rain") {
+      if (r.dist <= 300) { add(12, "비 오는 날 코앞 거리"); reasons.push({ t: `비 오는 날 ${r.dist}m 코앞`, c: "blue" }); }
+      else add(-r.walk, "비 오는 날 먼 거리");
+    }
+    if (S.weather === "hot") {
+      if (r.tags.includes("cold")) { add(12, "더운 날 시원한 메뉴"); reasons.push({ t: "더운 날 시원한 메뉴", c: "blue" }); }
+      if (r.tags.includes("hot")) add(-6, "더운 날 뜨거운 메뉴");
+    }
+    if (S.weather === "cold") {
+      if (r.tags.includes("hot")) { add(12, "추운 날 뜨끈한 국물"); reasons.push({ t: "추운 날 뜨끈한 국물", c: "blue" }); }
+      if (r.tags.includes("cold")) add(-10, "추운 날 차가운 메뉴");
+      if (r.dist >= 700) add(-5, "추운 날 먼 거리");
+    }
+
+    if (dinner) {
+      if (r.tags.includes("light")) { add(14, "저녁 회식 전 가벼운 메뉴"); reasons.push({ t: "저녁 회식 전이라 가볍게", c: "blue" }); }
+      if (r.tags.includes("heavy")) add(-14, "저녁 회식 전 무거운 메뉴");
+    }
+
+    if (r.price <= S.budget - 2000) add(4, "예산 여유");
+    reasons.push({ t: `예산 내 ${won(r.price)}`, c: "" });
+    if (mb.tight && r.price <= 9000) { add(10, "월 예산 절약 모드"); reasons.push({ t: "이번 달 예산 절약 중", c: "" }); }
+    if (S.party >= 5 && r.tags.includes("group")) reasons.push({ t: `${S.party}명 단체석 가능`, c: "" });
+    if (r.nutri.kcal <= 500) reasons.push({ t: `${r.nutri.kcal}kcal 가벼운 한 끼`, c: "green" });
+
+    // 실시간 혼잡도: 오늘 이 앱으로 이 식당을 결정한 사용자 수 반영
+    const crowd = crowdCount(r);
+    if (win && win.minutes <= 45 && crowd.count >= 12) {
+      add(-12, "붐비는 집 + 짧은 점심시간");
+      reasons.push({ t: "웨이팅 예상 — 시간 빠듯", c: "" });
+    } else if (crowd.count <= 4) {
+      add(3, "지금 한산함");
+      reasons.push({ t: "지금 한산함", c: "blue" });
+    }
+
+    results.push({ r, score, reasons, breakdown: br, crowd });
+  }
+
+  results.sort((a, b) => b.score - a.score);
+  return { list: results, win, dinner };
+}
+let lastReco = null;   // renderAll에서 계산해 지도와 공유
+
+function monthSpendInfo() {
+  const ym = todayStr().slice(0, 7);
+  const spent = S.visits.filter(v => v.date.startsWith(ym)).reduce((s, v) => s + v.price, 0);
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysLeft = daysInMonth - now.getDate() + 1;
+  const remaining = S.monthBudget - spent;
+  const tight = S.monthBudget > 0 && remaining / Math.max(daysLeft, 1) < S.budget * 0.8;
+  return { spent, remaining, daysLeft, tight };
+}
+
+/* ═══════════════ 오늘의 결론(히어로) + 다른 선택지 렌더링 ═══════════════ */
+let heroAnimDone = false;   // 히어로 등장 모션은 첫 렌더링에만
+function renderTop3() {
+  const box = $("#top3");
+  if (hasLunchAppointment()) {
+    box.innerHTML = `<div class="card empty"><span class="empty-badge">외부 일정</span>
+      <h3>오늘은 점심 약속이 있네요</h3>
+      <p>약속 일정을 지우면 다시 추천을 시작합니다.</p></div>`;
+    return;
+  }
+  const { win, list } = lastReco;
+  if (!win) {
+    box.innerHTML = `<div class="card empty"><span class="empty-badge">시간 없음</span>
+      <h3>점심시간이 일정으로 꽉 찼어요</h3>
+      <p>포장이나 배달을 추천해요. 일정을 조정하면 다시 계산합니다.</p></div>`;
+    return;
+  }
+  if (!list.length) {
+    box.innerHTML = `<div class="card empty"><span class="empty-badge">조건 미달</span>
+      <h3>조건에 맞는 식당이 없어요</h3>
+      <p>조건 패널에서 탐색 반경을 넓히거나 예산을 올려보세요.</p></div>`;
+    return;
+  }
+
+  // 오늘 상황 요약 칩: 추천의 근거가 된 컨텍스트를 결과 옆에서 바로 보여준다
+  const wLabel = (WEATHERS.find(([k]) => k === S.weather) || [])[1] || "";
+  const temp = weatherInfo && weatherInfo.autoOk ? ` ${weatherInfo.temp}°C` : "";
+  const mb = monthSpendInfo();
+  const ctx = [
+    `날씨 ${wLabel}${temp}`,
+    `점심 가능 ${win.minutes}분`,
+    mb.tight ? "이번 달 예산 절약 모드" : "예산 여유",
+  ].map(t => `<span class="ctx-chip">${t}</span>`).join("");
+
+  const pop1 = popularToday()[0];
+  const cardHtml = (item, i) => {
+    const r = item.r;
+    const eatenToday = S.visits.some(v => v.date === todayStr() && v.id === r.id);
+    const open = expandedWhy === r.id;
+    const crowdTxt = `<span class="cst ${item.crowd.cls}">${item.crowd.label}</span> · 오늘 ${item.crowd.count}명${pop1 && pop1.r.id === r.id ? " · 인기 1위" : ""}`;
+    const nutriTxt = `${r.nutri.kcal}kcal · 단백질 ${r.nutri.p}g · 탄수화물 ${r.nutri.c}g · 지방 ${r.nutri.f}g (${r.src === "표준" ? "표준 영양정보 추정" : "식당 제공 정보"})`;
+
+    if (i === 0) return `
+    <section class="hero ${heroAnimDone ? "" : "in"}">
+      <div class="hero-eyebrow"><svg class="ic" aria-hidden="true"><use href="#spoonCheck"/></svg>오늘 점심, 이걸로 정했어요</div>
+      <div class="ctx">${ctx}</div>
+      <div class="hero-main">
+        <span class="plate" aria-hidden="true">${r.emoji}</span>
+        <div>
+          <h3 class="hero-name">${r.name}</h3>
+          <div class="hero-menu">${r.category} · ${r.menu}</div>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat-i"><span class="l">가격</span><span class="v">${won(r.price)}</span></div>
+        <div class="stat-i"><span class="l">거리</span><span class="v">${r.dist}m · 도보 ${r.walk}분</span></div>
+        <div class="stat-i"><span class="l">식사 시간</span><span class="v">약 ${r.eat}분</span></div>
+        <div class="stat-i"><span class="l">혼잡도</span><span class="v">${crowdTxt}</span></div>
+      </div>
+      <div class="reasons">${item.reasons.slice(0, 4).map(x => `<span class="chip ${x.c}">${x.t}</span>`).join("")}</div>
+      <div class="reco-actions">
+        <button class="primary decide" onclick="decide('${r.id}')" ${eatenToday ? "disabled" : ""}>
+          <svg class="ic" aria-hidden="true"><use href="#spoonCheck"/></svg>${eatenToday ? "오늘 기록됨" : "이걸로 결정"}
+        </button>
+        <a class="linkbtn" href="${infoUrl(r)}" target="_blank" rel="noopener" title="네이버 지도에서 식당 정보 보기">정보</a>
+      </div>
+      <div class="why-wrap">
+        <button class="why-btn" onclick="toggleWhy('${r.id}')">${open ? "산출 근거 접기" : "왜 이 집인가요? — 산출 근거"}</button>
+        ${open ? whyHtml(item) : ""}
+      </div>
+      <div class="fineprint">${nutriTxt} · 원산지: ${r.origin}</div>
+    </section>`;
+
+    return `
+    <div class="alt">
+      <span class="alt-rank">${i + 1}위</span>
+      <div class="alt-top">
+        <span class="plate sm" aria-hidden="true">${r.emoji}</span>
+        <div>
+          <div class="alt-name">${r.name}</div>
+          <div class="alt-menu">${r.category} · ${r.menu}</div>
+        </div>
+      </div>
+      <div class="alt-meta">${won(r.price)} · ${r.dist}m 도보 ${r.walk}분 · 약 ${r.eat}분 · ${crowdTxt}</div>
+      <div class="reasons">${item.reasons.slice(0, 2).map(x => `<span class="chip ${x.c}">${x.t}</span>`).join("")}</div>
+      <div>
+        <button class="why-btn" onclick="toggleWhy('${r.id}')">${open ? "산출 근거 접기" : "산출 근거"}</button>
+        ${open ? whyHtml(item) : ""}
+      </div>
+      <div class="reco-actions">
+        <button class="small primary" onclick="decide('${r.id}')" ${eatenToday ? "disabled" : ""}>${eatenToday ? "오늘 기록됨" : "이걸로 결정"}</button>
+        <a class="linkbtn small" href="${infoUrl(r)}" target="_blank" rel="noopener" title="네이버 지도에서 식당 정보 보기">정보</a>
+      </div>
+      <div class="fineprint">${nutriTxt}<br>원산지: ${r.origin}</div>
+    </div>`;
+  };
+
+  const hero = cardHtml(list[0], 0);
+  const alts = list.slice(1, 3).map((item, i) => cardHtml(item, i + 1)).join("");
+  box.innerHTML = hero + (alts ? `
+    <div class="alts-head"><h3>다른 선택지</h3></div>
+    <div class="alts">${alts}</div>` : "");
+  heroAnimDone = true;
+}
+
+// "왜 이 집?" — 산출 내역서: 점수 구성 + 동종 비교 + 당일 인증 리뷰
+function whyHtml(item) {
+  const rows = item.breakdown.map(b =>
+    `<div class="bd-row"><span>${b.label}</span><b class="${b.pts > 0 ? "plus" : "minus"}">${b.pts > 0 ? "+" : ""}${b.pts}</b></div>`).join("");
+  const idx = lastReco.list.indexOf(item);
+  const rival = lastReco.list.slice(idx + 1).find(x => x.r.category === item.r.category);
+  let vs = "";
+  if (rival) {
+    const diff = Math.round(item.score - rival.score);
+    const rivalNeg = rival.breakdown.filter(b => b.pts < 0).sort((a, b) => a.pts - b.pts).slice(0, 2)
+      .map(b => `${b.label} ${b.pts}점`).join(" · ");
+    vs = `<div class="vs"><div class="hd">동종 비교</div>반경 내 같은 ${item.r.category} <b>${rival.r.name}</b>(${Math.round(rival.score)}점) 대비 <b>+${diff}점</b>${rivalNeg ? `<br>${rival.r.name}의 감점: ${rivalNeg}` : ""}</div>`;
+  }
+  const revs = reviewsFor(item.r.id).slice(0, 2).map(v =>
+    `<div class="r-item">✓ <b>${v.author}</b> · ${v.date.slice(5).replace("-", "/")} <span class="lk ${v.liked ? "y" : "n"}">${v.liked ? "○" : "✕"}</span> "${v.text}"</div>`).join("");
+  return `<div class="why">
+    ${rows}
+    <div class="total"><span>총점</span><span>${Math.round(item.score)}점</span></div>
+    ${vs}
+    ${revs ? `<div class="rv"><div class="hd">당일 인증 리뷰</div>${revs}</div>` : ""}
+  </div>`;
+}
+
+function renderPopular() {
+  const top = popularToday();
+  $("#popularCard").innerHTML = `
+    <span class="p-title">지금 주변 인기</span>
+    ${top.length
+      ? top.map((x, i) => `<span class="p-item">${i + 1}위 <b>${x.r.emoji} ${x.r.name}</b> ${x.count}명</span>`).join("")
+      : `<span class="p-item">반경 내 식당이 없어요 — 반경을 넓혀보세요</span>`}
+    <span class="p-note">${S.workplace.name} 반경 ${S.radius}m · 오늘 이 앱으로 결정한 사용자 수 (프로토타입 시뮬레이션)</span>`;
+}
+
+/* ═══════════════ 지도 ═══════════════ */
+let map = null, markersLayer = null, circle = null, wpMarker = null;
+function initMap() {
+  if (typeof L === "undefined") {
+    $("#map").innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--sub);font-size:14px;padding:20px;text-align:center">
+      지도 라이브러리(Leaflet)를 불러오지 못했어요.<br>인터넷 연결 후 새로고침하면 지도가 표시됩니다.</div>`;
+    return false;
+  }
+  map = L.map("map", { scrollWheelZoom: false }).setView([S.workplace.lat, S.workplace.lng], 16);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
+  circle = L.circle([S.workplace.lat, S.workplace.lng], {
+    radius: S.radius, color: "#E0431F", weight: 1.5, fillColor: "#E0431F", fillOpacity: .05, dashArray: "6 6",
+  }).addTo(map);
+  wpMarker = L.marker([S.workplace.lat, S.workplace.lng], {
+    icon: L.divIcon({ className: "", html: '<div class="pin wp">🏢</div>', iconSize: [36, 36], iconAnchor: [18, 18] }),
+    zIndexOffset: 1000,
+  }).addTo(map).bindPopup("<b>내 위치</b>");
+  map.on("click", e => {
+    S.workplace.lat = e.latlng.lat;
+    S.workplace.lng = e.latlng.lng;
+    toast("위치를 옮겼어요 — 주변 식당과 날씨를 다시 탐색합니다");
+    renderAll();
+    if (S.weatherAuto) fetchWeather();
+  });
+  return true;
+}
+function renderMap() {
+  if (!map) return;
+  const wp = [S.workplace.lat, S.workplace.lng];
+  circle.setLatLng(wp); circle.setRadius(S.radius);
+  wpMarker.setLatLng(wp);
+  markersLayer.clearLayers();
+  const top3Ids = lastReco.list.slice(0, 3).map(x => x.r.id);
+  for (const r of RESTAURANTS) {
+    const inR = r.dist <= S.radius;
+    const isTop = top3Ids.includes(r.id);
+    const rankNo = top3Ids.indexOf(r.id) + 1;
+    const icon = L.divIcon({
+      className: "",
+      html: `<div class="pin ${isTop ? "top" : ""} ${inR ? "" : "out"}">${r.emoji}</div>`,
+      iconSize: [isTop ? 34 : 30, isTop ? 34 : 30],
+      iconAnchor: [isTop ? 17 : 15, isTop ? 17 : 15],
+    });
+    L.marker(restLatLng(r), { icon, zIndexOffset: isTop ? 500 : 0 })
+      .bindPopup(`<b>${isTop ? rankNo + "위 · " : ""}${r.name}</b><br>
+        ${r.menu} · ${won(r.price)}<br>
+        ${r.dist}m (도보 ${r.walk}분) · ${r.nutri.kcal}kcal<br>
+        오늘 ${crowdCount(r).count}명 결정<br>
+        <a href="${infoUrl(r)}" target="_blank" rel="noopener">식당 정보 보기</a>`)
+      .addTo(markersLayer);
+  }
+  const center = map.getCenter();
+  if (Math.abs(center.lat - wp[0]) > 1e-4 || Math.abs(center.lng - wp[1]) > 1e-4) map.setView(wp);
+}
+
+/* ═══════════════ 일정 / 프로필 렌더링 ═══════════════ */
+function renderEvents() {
+  const list = $("#eventList");
+  if (!S.events.length) {
+    list.innerHTML = `<p class="muted">오늘 등록된 일정이 없어요. 점심시간이 여유롭습니다.</p>`;
+  } else {
+    list.innerHTML = S.events
+      .slice().sort((a, b) => toMin(a.start) - toMin(b.start))
+      .map(e => `<div class="event">
+        <span class="time">${e.start}–${e.end}</span>
+        <span class="title">${e.title}</span>
+        <button class="del" onclick="removeEvent(${S.events.indexOf(e)})" title="삭제">✕</button>
+      </div>`).join("");
+  }
+  const win = lunchWindow();
+  const el = $("#lunchWindow");
+  if (!win) {
+    el.textContent = "점심 가능 시간 없음 — 포장·배달 추천";
+    el.className = "lunch-window tight";
+  } else {
+    el.textContent = `점심 가능 ${fmtMin(win.start)} ~ ${fmtMin(win.end)} (${win.minutes}분)`;
+    el.className = "lunch-window" + (win.minutes <= 45 ? " tight" : "");
+  }
+}
+
+function renderProfile() {
+  $("#budget").value = S.budget;
+  $("#party").value = S.party;
+  $("#monthBudget").value = S.monthBudget;
+  $("#wpName").value = S.workplace.name;
+  $("#radius").value = S.radius;
+  $("#radiusLabel").textContent = S.radius + "m";
+
+  $("#allergyToggles").innerHTML = ALLERGENS.map(a =>
+    `<span class="toggle danger ${S.allergies.includes(a) ? "on" : ""}" role="button" tabindex="0" onclick="toggleAllergy('${a}')">${a}</span>`).join("");
+
+  $("#categoryToggles").innerHTML = CATEGORIES.map(c => {
+    const st = S.catPrefs[c];
+    const cls = st === "like" ? "on like" : st === "dislike" ? "on dislike" : "";
+    const mark = st === "like" ? "♥ " : st === "dislike" ? "✕ " : "";
+    return `<span class="toggle ${cls}" role="button" tabindex="0" onclick="cycleCat('${c}')">${mark}${c}</span>`;
+  }).join("");
+
+  $("#spicyToggles").innerHTML = SPICY_OPTS.map(([k, label]) =>
+    `<span class="toggle ${S.spicy === k ? "on" : ""}" role="button" tabindex="0" onclick="setSpicy('${k}')">${label}</span>`).join("");
+
+  $("#weatherToggles").innerHTML =
+    `<span class="toggle ${S.weatherAuto ? "on" : ""}" role="button" tabindex="0" onclick="setWeatherAuto()" title="기상 API로 자동 감지">자동 감지</span>` +
+    WEATHERS.map(([k, label]) =>
+      `<span class="toggle ${!S.weatherAuto && S.weather === k ? "on" : ""}" role="button" tabindex="0" onclick="setWeather('${k}')">${label}</span>`).join("");
+  const wLabel = (WEATHERS.find(([k]) => k === S.weather) || [])[1] || "";
+  $("#weatherStatus").innerHTML = S.weatherAuto
+    ? (weatherInfo && weatherInfo.autoOk
+        ? `— ${wLabel} · ${weatherInfo.temp}°C <span style="color:var(--green)">(기상 API 자동)</span>`
+        : `— <span style="color:var(--accent)">자동 감지 대기/실패 시 맑음 기준</span>`)
+    : `— ${wLabel} (수동 설정)`;
+
+  const m = monthSpendInfo();
+  const pct = S.monthBudget > 0 ? Math.min(100, Math.round(m.spent / S.monthBudget * 100)) : 0;
+  const fill = $("#budgetFill");
+  fill.style.width = pct + "%";
+  fill.className = pct >= 100 ? "over" : pct >= 75 ? "warn" : "";
+  $("#budgetNote").innerHTML = S.monthBudget > 0
+    ? `이번 달 <b>${won(m.spent)}</b> 사용 · 남은 ${m.daysLeft}일 동안 <b>${won(Math.max(0, m.remaining))}</b>` +
+      (m.tight ? ` · <span style="color:var(--red)">빠듯해서 저렴한 곳 위주로 추천 중</span>` : "")
+    : "월 예산을 설정하면 지출을 관리해 드려요";
+}
+
+/* ═══════════════ 식사 달력 ═══════════════ */
+const now0 = new Date();
+let calYM = { y: now0.getFullYear(), m: now0.getMonth() };   // m: 0-based
+let selDate = todayStr();
+
+function renderCalendar() {
+  $("#calTitle").textContent = `${calYM.y}년 ${calYM.m + 1}월`;
+  const firstDow = new Date(calYM.y, calYM.m, 1).getDay();
+  const days = new Date(calYM.y, calYM.m + 1, 0).getDate();
+  const byDate = {};
+  for (const v of S.visits) (byDate[v.date] = byDate[v.date] || []).push(v);
+
+  let html = "";
+  for (let i = 0; i < firstDow; i++) html += `<div class="cal-cell blank"></div>`;
+  for (let d = 1; d <= days; d++) {
+    const ds = `${calYM.y}-${pad(calYM.m + 1)}-${pad(d)}`;
+    const vs = byDate[ds] || [];
+    const last = vs[vs.length - 1];
+    const cls = ["cal-cell", ds === todayStr() ? "today" : "", ds === selDate ? "sel" : ""].join(" ");
+    html += `<div class="${cls}" onclick="selectDay('${ds}')">
+      <span>${d}</span>
+      ${last ? `<span class="emo">${last.emoji || "🍽️"}</span><span class="dot ${last.feedback || ""}"></span>` : ""}
+    </div>`;
+  }
+  $("#calGrid").innerHTML = html;
+
+  // 선택한 날 상세 + 피드백
+  const vs = byDate[selDate] || [];
+  const [sy, sm, sd] = selDate.split("-");
+  let detail = `<div class="d-title">${+sm}월 ${+sd}일의 기록</div>`;
+  if (!vs.length) {
+    detail += `<p class="muted">이날은 기록이 없어요. 추천 카드에서 <b>"이걸로 결정"</b>을 누르면 자동 저장됩니다.</p>`;
+  } else {
+    const isToday = selDate === todayStr();
+    detail += vs.map(v => {
+      const idx = S.visits.indexOf(v);
+      const sel = k => v.feedback === k ? `sel-${k}` : "";
+      let review;
+      if (v.review) {
+        review = `<div class="rev-text"><span class="ok">✓ 인증 리뷰</span> "${v.review}"${isToday ? ` <span class="edit-link" onclick="editReview(${idx})" title="리뷰 수정">수정</span>` : ""}</div>`;
+      } else if (isToday) {
+        review = `<div class="rev-input"><input type="text" id="rev-${idx}" maxlength="80" placeholder="한 줄 리뷰 — 당일만 작성 가능 (방문 인증 ✓)"><button class="small" onclick="saveReview(${idx})">등록</button></div>`;
+      } else {
+        review = `<div class="rev-text">리뷰는 방문 당일에만 쓸 수 있어요 (허위 리뷰 방지)</div>`;
+      }
+      return `<div class="visit">
+        <span>${v.emoji || "🍽️"}</span>
+        <span class="n">${v.name} <span class="sub">· ${v.menu || ""} · ${won(v.price)}</span></span>
+        <span class="fb">
+          <button class="${sel("like")}" onclick="setFeedback(${idx},'like')" title="맛있어요 — 더 자주 추천">좋아요</button>
+          <button class="${sel("dislike")}" onclick="setFeedback(${idx},'dislike')" title="별로예요 — 순위 낮춤">별로</button>
+          <button class="${sel("ban")}" onclick="setFeedback(${idx},'ban')" title="다신 안 가요 — 추천에서 제외">제외</button>
+        </span>
+      </div>${review}`;
+    }).join("");
+  }
+  const banned = S.banned.map(id => RESTAURANTS.find(r => r.id === id)).filter(Boolean);
+  if (banned.length) {
+    detail += `<p class="muted" style="margin-top:8px">추천 제외: ${banned.map(r =>
+      `<b>${r.name}</b> <span class="edit-link" onclick="unban('${r.id}')" title="제외 해제">해제</span>`).join(" · ")}</p>`;
+  }
+  $("#calDetail").innerHTML = detail;
+  renderReport();
+}
+
+/* ═══════════════ 월간 리포트 ═══════════════ */
+let showReport = false;
+// 보고 있는 달의 평일에 예시 식사 기록을 채움 (리포트 미리보기용)
+function fillDemoVisits() {
+  const days = new Date(calYM.y, calYM.m + 1, 0).getDate();
+  const today = todayStr();
+  for (let d = 1; d <= days; d++) {
+    const ds = `${calYM.y}-${pad(calYM.m + 1)}-${pad(d)}`;
+    if (ds > today) break;
+    const dow = new Date(calYM.y, calYM.m, d).getDay();
+    if (dow === 0 || dow === 6) continue;
+    if (Math.random() < 0.25) continue;
+    if (S.visits.some(v => v.date === ds)) continue;
+    const r = RESTAURANTS[Math.floor(Math.random() * RESTAURANTS.length)];
+    const roll = Math.random();
+    const feedback = roll < 0.5 ? "like" : roll < 0.65 ? "dislike" : null;
+    S.visits.push({ date: ds, id: r.id, name: r.name, menu: r.menu, emoji: r.emoji, price: r.price, feedback });
+  }
+  S.visits.sort((a, b) => a.date.localeCompare(b.date));
+  toast("예시 기록을 채웠어요 — '기록 전체 삭제'로 되돌릴 수 있어요");
+  renderAll();
+}
+function renderReport() {
+  const box = $("#reportBox");
+  $("#btnReport").textContent = showReport ? "리포트 닫기" : "월간 리포트";
+  if (!showReport) { box.innerHTML = ""; return; }
+  const ym = `${calYM.y}-${pad(calYM.m + 1)}`;
+  const visits = S.visits.filter(v => v.date.startsWith(ym));
+  if (!visits.length) {
+    box.innerHTML = `<div class="report"><h3>${calYM.y}년 ${calYM.m + 1}월 리포트</h3>
+      <p class="muted">이 달의 기록이 없어요. "이걸로 결정"으로 기록을 쌓아보세요.</p>
+      <div class="add-event"><button class="small" onclick="fillDemoVisits()">예시 기록으로 미리보기</button></div></div>`;
+    return;
+  }
+  const info = v => RESTAURANTS.find(r => r.id === v.id);
+  const spent = visits.reduce((s, v) => s + v.price, 0);
+  const avgPrice = Math.round(spent / visits.length);
+  const kcals = visits.map(v => (info(v) || {}).nutri).filter(Boolean).map(n => n.kcal);
+  const avgKcal = kcals.length ? Math.round(kcals.reduce((a, b) => a + b, 0) / kcals.length) : null;
+  const walkKm = (visits.reduce((s, v) => s + ((info(v) || {}).dist || 0) * 2, 0) / 1000).toFixed(1);
+  const likes = visits.filter(v => v.feedback === "like").length;
+  const dislikes = visits.filter(v => v.feedback === "dislike").length;
+  const monthStart = ym + "-01";
+  const newPlaces = new Set(visits.filter(v => !S.visits.some(p => p.id === v.id && p.date < monthStart)).map(v => v.id)).size;
+  const budgetPct = S.monthBudget > 0 ? Math.round(spent / S.monthBudget * 100) : null;
+
+  const catCount = {};
+  visits.forEach(v => { const c = (info(v) || {}).category || "기타"; catCount[c] = (catCount[c] || 0) + 1; });
+  const cats = Object.entries(catCount).sort((a, b) => b[1] - a[1]);
+  const maxCat = cats[0][1];
+
+  const byRest = {};
+  visits.forEach(v => {
+    byRest[v.id] = byRest[v.id] || { name: v.name, emoji: v.emoji || "🍽️", count: 0, likes: 0 };
+    byRest[v.id].count++;
+    if (v.feedback === "like") byRest[v.id].likes++;
+  });
+  const favs = Object.values(byRest).sort((a, b) => b.count - a.count || b.likes - a.likes).slice(0, 3);
+  const medals = ["1위", "2위", "3위"];
+
+  box.innerHTML = `<div class="report">
+    <h3>${calYM.y}년 ${calYM.m + 1}월 리포트</h3>
+    <div class="stat-grid">
+      <div class="stat"><div class="v">${visits.length}<small>끼</small></div><div class="l">기록한 점심</div></div>
+      <div class="stat"><div class="v">${won(spent)}</div><div class="l">총 지출${budgetPct !== null ? ` · 예산의 ${budgetPct}%` : ""}</div></div>
+      <div class="stat"><div class="v">${won(avgPrice)}</div><div class="l">평균 한 끼</div></div>
+      <div class="stat"><div class="v">${avgKcal !== null ? avgKcal + "<small>kcal</small>" : "–"}</div><div class="l">평균 칼로리</div></div>
+      <div class="stat"><div class="v">${walkKm}<small>km</small></div><div class="l">점심 산책 거리</div></div>
+      <div class="stat"><div class="v">○${likes} <small>/</small> △${dislikes}</div><div class="l">평가 · 새 도전 ${newPlaces}곳</div></div>
+    </div>
+    <h4>무엇을 먹었나</h4>
+    ${cats.map(([c, n]) => `<div class="bar-row">
+      <span class="lbl">${c}</span>
+      <span class="track"><span class="fill" style="display:block;width:${Math.round(n / maxCat * 100)}%"></span></span>
+      <span class="val">${n}회 · ${Math.round(n / visits.length * 100)}%</span>
+    </div>`).join("")}
+    <h4>이 달의 최애 식당</h4>
+    ${favs.map((f, i) => `<div class="fav-row"><span class="medal">${medals[i]}</span><span>${f.emoji} <b>${f.name}</b></span><span class="cnt">${f.count}회${f.likes ? " · ○" + f.likes : ""}</span></div>`).join("")}
+  </div>`;
+}
+
+function renderAll() {
+  $("#todayLabel").textContent = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+  lastReco = recommend();
+  renderEvents();
+  renderProfile();
+  renderCalendar();
+  renderTop3();
+  renderPopular();
+  renderMap();
+  save();
+}
+
+/* ═══════════════ 액션 ═══════════════ */
+function decide(id) {
+  const r = RESTAURANTS.find(x => x.id === id);
+  S.visits.push({ date: todayStr(), id: r.id, name: r.name, menu: r.menu, emoji: r.emoji, price: r.price, feedback: null });
+  selDate = todayStr();
+  calYM = { y: now0.getFullYear(), m: now0.getMonth() };
+  toast(`결정 완료 — ${r.name}, 식사 기록에 저장했어요. 다녀와서 평가를 남겨 주세요`);
+  renderAll();
+}
+function selectDay(ds) { selDate = ds; renderCalendar(); }
+function removeEvent(i) { S.events.splice(i, 1); renderAll(); }
+function toggleAllergy(a) {
+  const i = S.allergies.indexOf(a);
+  i >= 0 ? S.allergies.splice(i, 1) : S.allergies.push(a);
+  renderAll();
+}
+function cycleCat(c) {
+  const cur = S.catPrefs[c];
+  if (!cur) S.catPrefs[c] = "like";
+  else if (cur === "like") S.catPrefs[c] = "dislike";
+  else delete S.catPrefs[c];
+  renderAll();
+}
+function setSpicy(k) { S.spicy = k; renderAll(); }
+function setWeather(k) { S.weather = k; S.weatherAuto = false; renderAll(); }
+function setWeatherAuto() { S.weatherAuto = true; toast("기상 API로 날씨를 자동 감지합니다"); fetchWeather(); }
+
+let expandedWhy = null;
+function toggleWhy(id) { expandedWhy = expandedWhy === id ? null : id; renderTop3(); }
+
+function saveReview(i) {
+  const inp = $("#rev-" + i);
+  const txt = (inp.value || "").trim();
+  if (!txt) { toast("리뷰 내용을 입력해 주세요"); return; }
+  S.visits[i].review = txt;
+  toast("인증 리뷰 등록 완료 — 주변 사용자의 추천에도 반영돼요");
+  renderAll();
+}
+function editReview(i) {
+  const old = S.visits[i].review;
+  S.visits[i].review = null;
+  renderCalendar();
+  const inp = $("#rev-" + i);
+  if (inp) { inp.value = old; inp.focus(); }
+}
+function setFeedback(i, k) {
+  const v = S.visits[i];
+  const prev = v.feedback;
+  v.feedback = prev === k ? null : k;
+  if (v.feedback === "ban" && !S.banned.includes(v.id)) S.banned.push(v.id);
+  if (prev === "ban" && v.feedback !== "ban") S.banned = S.banned.filter(x => x !== v.id);
+  if (v.feedback === "like") toast("반영 완료 — 이 집이 앞으로 더 자주 올라와요");
+  if (v.feedback === "dislike") toast("반영 완료 — 추천 순위를 낮출게요");
+  if (v.feedback === "ban") toast("알겠어요, 이 집은 다시 추천하지 않을게요");
+  renderAll();
+}
+function unban(id) { S.banned = S.banned.filter(x => x !== id); renderAll(); }
+
+$("#btnAddEvent").onclick = () => {
+  const start = $("#evStart").value, end = $("#evEnd").value;
+  const title = $("#evTitle").value.trim() || "일정";
+  if (!start || !end || toMin(end) <= toMin(start)) { toast("시작/종료 시간을 확인해 주세요"); return; }
+  S.events.push({ start, end, title });
+  $("#evTitle").value = "";
+  renderAll();
+};
+$("#btnDemoEvents").onclick = () => {
+  S.events = [
+    { start: "10:00", end: "11:00", title: "주간 회의" },
+    { start: "13:00", end: "14:00", title: "고객사 미팅" },
+    { start: "19:00", end: "21:00", title: "팀 회식" },
+  ];
+  toast("예시 일정을 불러왔어요 — 추천이 바뀌는 걸 확인해 보세요");
+  renderAll();
+};
+$("#btnClearEvents").onclick = () => { S.events = []; renderAll(); };
+$("#btnClearHistory").onclick = () => { S.visits = []; S.banned = []; toast("기록을 모두 지웠어요"); renderAll(); };
+$("#btnReport").onclick = () => { showReport = !showReport; renderCalendar(); };
+$("#calPrev").onclick = () => { calYM.m--; if (calYM.m < 0) { calYM.m = 11; calYM.y--; } renderCalendar(); };
+$("#calNext").onclick = () => { calYM.m++; if (calYM.m > 11) { calYM.m = 0; calYM.y++; } renderCalendar(); };
+$("#budget").onchange = e => { S.budget = +e.target.value || 12000; renderAll(); };
+$("#party").onchange = e => { S.party = Math.max(1, +e.target.value || 1); renderAll(); };
+$("#monthBudget").onchange = e => { S.monthBudget = +e.target.value || 0; renderAll(); };
+$("#wpName").onchange = e => { S.workplace.name = e.target.value.trim() || "내 위치"; renderAll(); };
+$("#radius").oninput = e => { S.radius = +e.target.value; $("#radiusLabel").textContent = S.radius + "m"; };
+$("#radius").onchange = e => { S.radius = +e.target.value; renderAll(); };
+$("#wpPreset").onchange = e => {
+  if (!e.target.value) return;
+  const [lat, lng, name] = e.target.value.split(",");
+  S.workplace = { lat: +lat, lng: +lng, name };
+  e.target.value = "";
+  toast(`${name}(으)로 이동했어요`);
+  if (map) map.setView([S.workplace.lat, S.workplace.lng], 16);
+  renderAll();
+  if (S.weatherAuto) fetchWeather();
+};
+
+// 토글(span) 키보드 조작: Enter/Space로 클릭과 동일하게 동작
+document.addEventListener("keydown", e => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.classList && e.target.classList.contains("toggle")) {
+    e.preventDefault();
+    e.target.click();
+  }
+});
+
+initMap();
+renderAll();
+fetchWeather();   // 기상 API로 오늘 날씨 자동 감지
+</script>
+</body>
+</html>

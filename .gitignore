@@ -1,0 +1,42 @@
+# ── 환경변수 / 비밀값 ──────────────────────────────
+# 실제 값이 담긴 .env 는 절대 커밋하지 않는다. 템플릿(.env.example)만 커밋.
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+
+# 키/인증 파일
+*.pem
+*.key
+secrets.json
+serviceAccount*.json
+
+# ── 의존성 / 빌드 산출물 ───────────────────────────
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# ── Claude Code 로컬 설정 ─────────────────────────
+# 로컬 머신에만 해당하는 설정은 공유하지 않는다.
+.claude/settings.local.json
+
+# ── 로그 / 캐시 ────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.cache/
+.temp/
+.tmp/
+
+# ── OS / 에디터 잡파일 ─────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.idea/
+.vscode/
