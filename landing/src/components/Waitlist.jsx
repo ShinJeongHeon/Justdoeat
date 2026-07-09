@@ -4,7 +4,7 @@ import { SpoonMark } from "./SpoonCheck";
 import { useReveal } from "../hooks";
 import { supabase } from "../supabaseClient";
 
-// 출시 알림 신청 — Supabase item 테이블에 저장한다.
+// 출시 알림 신청 — Supabase page 테이블에 저장한다.
 // 이메일 → email, 전화번호 → phone, 직장 동네 → company 로 매핑.
 // 재방문 시 "신청 완료" 상태를 보여주기 위해 localStorage에도 사본을 남긴다.
 // 직장 동네 필드가 핵심 훅: "신청이 많은 동네부터 먼저 엽니다."
@@ -45,8 +45,8 @@ export default function Waitlist() {
     }
 
     setSubmitting(true);
-    // item 테이블에 저장 — 직장 동네(hood)는 company 컬럼으로.
-    const { error: dbError } = await supabase.from("item").insert({
+    // page 테이블에 저장 — 직장 동네(hood)는 company 컬럼으로.
+    const { error: dbError } = await supabase.from("page").insert({
       email: email || null,
       phone: phone || null,
       company: hood || null,
